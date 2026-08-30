@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny: all unmatched paths are strictly blocked
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions for secure validation
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidLocation(loc) {
+      return loc == null || (
+        loc is map
+        && loc.latitude is number
+        && loc.latitude >= -90.0
+        && loc.latitude <= 90.0
+        && loc.longitude is number
+        && loc.longitude >= -180.0
+        && loc.longitude <= 180.0
+        && (!('label' in loc) || loc.label == null || (loc.label is string && loc.label.size() <= 200))
+        && (!('accuracy' in loc) || loc.accuracy == null || loc.accuracy is number)
+        && (!('capturedAt' in loc) || loc.capturedAt == null || (loc.capturedAt is string && loc.capturedAt.size() <= 100))
+      );
+    }
+
+    function isValidInteraction(data, userId) {
+      return data.userId == userId
+        && data.id is string
+        && data.title is string
+        && data.title.size() <= 200
+        && data.summary is string
+        && data.summary.size() <= 2000
+        && data.messages is list
+        && data.createdAt is number
+        && data.updatedAt is number
+        && (!('reflectionCompass' in data) || data.reflectionCompass == null || data.reflectionCompass is map)
+        && (!('location' in data) || isValidLocation(data.location));
+    }
+
+    // Strict User-Isolated Interactions Subcollection
+    match /users/{userId}/interactions/{interactionId} {
+      allow get, list, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidInteraction(request.resource.data, userId);
+    }
+
+    // User profile/preferences root document
+    match /users/{userId} {
+      allow get, write: if isOwner(userId);
+    }
+  }
+}
