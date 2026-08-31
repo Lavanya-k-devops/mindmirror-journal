@@ -513,4 +513,4 @@ Built with **Google AI Studio, Gemini, Firebase, and Google Cloud Run**.
 
 Created for the **Cloud Run AI Challenge**.
 
-### #AccelerateAIwithCloudRun
+### #AccelerateAIwithCloudRun #Gemini #GoogleCloud ###
